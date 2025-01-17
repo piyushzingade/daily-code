@@ -25,18 +25,24 @@ export interface Problem {
 const CompleteTrackCard = ({ notionId, TrackData }: { notionId: string; TrackData: CompleteTrackCardProps }) => {
   async function handleAddTrack() {
     setIsSubmitting(true);
-    await createTrack({
-      id: TrackData.trackId,
-      title: TrackData.trackTitle,
-      description: TrackData.trackDescription,
-      image: TrackData.trackImage,
-      hidden: false,
-      problems: problems,
-      selectedCategory: TrackData.selectedCategory,
-      cohort: parseInt(TrackData.cohort),
-    });
-    await insertData(TrackData.trackId);
-    setIsSubmitting(true);
+    try {
+      await createTrack({
+        id: TrackData.trackId,
+        title: TrackData.trackTitle,
+        description: TrackData.trackDescription,
+        image: TrackData.trackImage,
+        hidden: false,
+        problems: problems,
+        selectedCategory: TrackData.selectedCategory,
+        cohort: parseInt(TrackData.cohort),
+        trackType: "NOTION", // Or "CANVA", based on logic
+      });
+      await insertData(TrackData.trackId);
+    } catch (error) {
+      console.error("Error adding track:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const [addButton, setAddButton] = useState(false);
@@ -56,18 +62,16 @@ const CompleteTrackCard = ({ notionId, TrackData }: { notionId: string; TrackDat
         if (response.ok) {
           const data: { notionDocId: string; title: string }[] = await response.json();
 
-          const dbData: { problem: Prisma.ProblemCreateManyInput; sortingOrder: number }[] = [];
-
-          for (let i = 0; i < data.length; i++) {
-            let problem = {
+          const dbData: { problem: Prisma.ProblemCreateManyInput; sortingOrder: number }[] = data.map((item, i) => ({
+            problem: {
               id: `${TrackData.trackTitle.replace(/[^a-zA-Z0-9]/g, "-")}-${i + 1}`,
-              notionDocId: data[i]?.notionDocId!,
-              title: data[i]?.title!,
-              description: data[i]?.title!,
+              notionDocId: item.notionDocId,
+              title: item.title,
+              description: item.title,
               type: ProblemType.Blog,
-            };
-            dbData.push({ problem, sortingOrder: data.length - i });
-          }
+            },
+            sortingOrder: data.length - i,
+          }));
 
           setProblems(dbData);
         } else {
@@ -122,3 +126,5 @@ const CompleteTrackCard = ({ notionId, TrackData }: { notionId: string; TrackDat
 };
 
 export default CompleteTrackCard;
+
+
